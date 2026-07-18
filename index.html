@@ -169,7 +169,6 @@
       padding: 0 8px;
     }
 
-    /* Placeholder area where additional Monetag ad code (e.g. a banner) can be added later */
     #monetag-ad-container {
       border: 1px dashed var(--border);
       border-radius: 16px;
@@ -199,10 +198,9 @@
     </section>
 
     <button class="click-btn" id="clickAdBtn" type="button">
-      <span id="btnLabel">Click Ad</span>
+      <span id="btnLabel">Auto Ad Running...</span>
     </button>
 
-    <!-- Placeholder for future Monetag banner / additional ad code -->
     <div id="monetag-ad-container">Ad space</div>
 
     <p class="hint">Points are credited after the ad finishes or is closed.</p>
@@ -222,7 +220,7 @@
       var btnLabel = document.getElementById("btnLabel");
       var toastTimer = null;
 
-      // Initialize the Telegram Mini App so it fills the Telegram window.
+      // Initialize the Telegram Mini App
       try {
         var tg = window.Telegram && window.Telegram.WebApp;
         if (tg) {
@@ -249,7 +247,7 @@
         isLoadingAd = loading;
         btn.disabled = loading;
         if (loading) {
-          btnLabel.textContent = "Loading ad...";
+          btnLabel.textContent = "Loading next ad...";
           if (!document.getElementById("btnSpinner")) {
             var s = document.createElement("span");
             s.className = "spinner";
@@ -257,39 +255,54 @@
             btn.insertBefore(s, btn.firstChild);
           }
         } else {
-          btnLabel.textContent = "Click Ad";
+          btnLabel.textContent = "Auto Ad Running...";
           var existing = document.getElementById("btnSpinner");
           if (existing) existing.remove();
         }
       }
 
-      btn.addEventListener("click", function () {
-        if (isLoadingAd) return;
-
-        // Monetag Rewarded Interstitial exposed by the SDK for zone 11339271.
+      // অটো অ্যাড রান করার মেইন ফাংশন
+      function triggerAutoAd() {
         var showAd = window.show_11339271;
 
+        // SDK লোড না হওয়া পর্যন্ত ২ সেকেন্ড পর পর ট্রাই করবে
         if (typeof showAd !== "function") {
-          console.log("[v0] Monetag SDK (show_11339271) is not available yet.");
+          console.log("[v0] Monetag SDK is not ready yet. Retrying...");
+          setTimeout(triggerAutoAd, 2000);
           return;
         }
 
+        if (isLoadingAd) return;
         setLoading(true);
 
-        // Rewarded interstitial — reward the user after the ad is watched/closed.
         showAd()
           .then(function () {
-            rewardUser();
+            rewardUser(); // সফলভাবে অ্যাড দেখলে পয়েন্ট পাবে
           })
           .catch(function (error) {
-            // User closed the ad early or it failed to load — no reward.
-            console.log("[v0] Monetag ad was not completed:", error);
+            console.log("[v0] Monetag ad closed or failed:", error);
           })
           .finally(function () {
             setLoading(false);
+            
+            // অ্যাড কেটে দেওয়ার ১.৫ সেকেন্ড পর অটোমেটিক পরের অ্যাড লোড হবে
+            setTimeout(function() {
+              triggerAutoAd();
+            }, 1500);
           });
+      }
+
+      // অ্যাপ ওপেন হওয়ার ৩ সেকেন্ড পর নিজে নিজেই প্রথম অ্যাড চালু হবে
+      window.addEventListener("load", function() {
+        setTimeout(triggerAutoAd, 3000);
       });
+
+      // কোনো কারণে অটোমেটিক আটকে গেলে ইউজার যাতে বাটনে ক্লিক করে আবার চালু করতে পারে
+      btn.addEventListener("click", function () {
+        triggerAutoAd();
+      });
+
     })();
   </script>
 </body>
-  </html> 
+  </html>
